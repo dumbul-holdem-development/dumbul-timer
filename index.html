@@ -607,30 +607,62 @@
         speechUnlocked = true;
       }catch(e){ /* tts not supported */ }
     }
-    const audioEl = document.getElementById('meow-audio');
-    if(audioEl){
-      audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; }).catch(() => {});
+  }
+
+  function playChime(onDone){
+    if(!state.soundEnabled) return;
+    if(state.theme === 'cat'){
+      playMeow(onDone);
+    } else {
+      playBeep();
+      if(onDone) setTimeout(onDone, 500);
     }
   }
 
-  function playChime(){
-    if(!state.soundEnabled) return;
-    if(state.theme === 'cat'){
-      const audioEl = document.getElementById('meow-audio');
-      if(audioEl){
-        try{
-          audioEl.currentTime = 0;
-          const p = audioEl.play();
-          if(p && typeof p.catch === 'function'){
-            p.catch(() => { playSynthMeow(); });
-          }
-          return;
-        }catch(e){ /* fall through to synthesized version below */ }
-      }
-      playSynthMeow();
-    } else {
-      playBeep();
+  // ---- 고양이 소리: 3개를 순서대로 번갈아 재생 (1 → 2 → 3 → 1 …) ----
+  const MEOW_FILES = ['sounds/meow1.mp3', 'sounds/meow2.mp3', 'sounds/meow3.mp3'];
+  const meowClips = MEOW_FILES.map((src) => {
+    const a = new Audio();
+    a.preload = 'auto';
+    a.src = src;
+    return a;
+  });
+  let meowIdx = 0;
+  try{ meowIdx = (parseInt(localStorage.getItem('dumbul-meow-idx'), 10) || 0) % MEOW_FILES.length; }catch(e){}
+
+  // 파일을 못 불러오면 삐비빅으로 대신해요(무음이 되지 않도록). onDone은 소리가 끝난 뒤 한 번 불려요.
+  function playMeow(onDone){
+    let clip = null;
+    for(let i = 0; i < meowClips.length; i++){
+      const idx = (meowIdx + i) % meowClips.length;
+      if(meowClips[idx].error) continue;            // 불러오기 실패한 파일은 건너뜀
+      clip = meowClips[idx];
+      meowIdx = (idx + 1) % meowClips.length;
+      try{ localStorage.setItem('dumbul-meow-idx', String(meowIdx)); }catch(e){}
+      break;
     }
+    if(!clip){ playBeep(); if(onDone) setTimeout(onDone, 500); return; }
+
+    let settled = false;      // 재생이 시작됐거나, 이미 대체음으로 넘어감
+    let finished = false;
+    const finish = () => { if(!finished){ finished = true; if(onDone) setTimeout(onDone, 150); } };
+    const fallback = () => { if(!settled){ settled = true; playBeep(); finished = true; if(onDone) setTimeout(onDone, 500); } };
+
+    clip.addEventListener('playing', () => { settled = true; }, { once: true });
+    clip.addEventListener('ended', finish, { once: true });
+
+    try{ clip.currentTime = 0; }catch(e){ /* 아직 로딩 전이면 무시 */ }
+    try{
+      const p = clip.play();
+      if(p && typeof p.catch === 'function'){ p.catch(fallback); }
+    }catch(e){ fallback(); return; }
+
+    // 1.2초 안에 재생이 시작되지 않으면(불러오는 중이거나 멈춘 경우) 삐비빅으로 대신
+    setTimeout(() => {
+      if(!settled){ try{ clip.pause(); }catch(e){} fallback(); }
+    }, 1200);
+    // 'ended'가 안 오는 경우를 대비한 안전장치
+    setTimeout(finish, 6000);
   }
 
   function playBeep(){
@@ -656,39 +688,6 @@
     }catch(e){ console.error('beep error', e); }
   }
 
-  function playSynthMeow(){
-    try{
-      if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
-      if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
-      const now = audioCtx.currentTime;
-
-      const osc = audioCtx.createOscillator();
-      const filter = audioCtx.createBiquadFilter();
-      const gain = audioCtx.createGain();
-
-      osc.type = 'sawtooth';
-      filter.type = 'lowpass';
-      filter.frequency.value = 2200;
-      filter.Q.value = 3;
-
-      // pitch contour: quick rise then a slower falling "meow" tail, with a little wobble
-      osc.frequency.setValueAtTime(480, now);
-      osc.frequency.linearRampToValueAtTime(1000, now + 0.10);
-      osc.frequency.linearRampToValueAtTime(760, now + 0.22);
-      osc.frequency.linearRampToValueAtTime(820, now + 0.30);
-      osc.frequency.linearRampToValueAtTime(400, now + 0.62);
-
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
-      gain.gain.linearRampToValueAtTime(0.22, now + 0.32);
-      gain.gain.linearRampToValueAtTime(0, now + 0.68);
-
-      osc.connect(filter).connect(gain).connect(audioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.7);
-    }catch(e){ console.error('meow error', e); }
-  }
-
   function speakBlinds(levelNum, lvl){
     if(!state.soundEnabled) return;
     if(!('speechSynthesis' in window)) return;
@@ -710,8 +709,10 @@
   function announceLevel(idx){
     const lvl = state.levels[idx];
     if(!lvl) return;
-    playChime();
-    setTimeout(() => speakBlinds(idx+1, lvl), state.theme === 'cat' ? 1000 : 500);
+    let spoke = false;
+    const speak = () => { if(!spoke){ spoke = true; speakBlinds(idx+1, lvl); } };
+    playChime(speak);              // 알림음이 끝나면 음성 안내
+    setTimeout(speak, 5000);       // 혹시 알림음 끝 신호가 안 와도 5초 안에는 안내
   }
 
   let tickHandle = null;
@@ -1002,9 +1003,5 @@
   loadState().then(startTicking);
 })();
 </script>
-<audio id="meow-audio" preload="auto">
-  <source src="sounds/meow.mp3" type="audio/mpeg">
-  <source src="https://bigsoundbank.com/UPLOAD/mp3/1892.mp3" type="audio/mpeg">
-</audio>
 </body>
 </html>

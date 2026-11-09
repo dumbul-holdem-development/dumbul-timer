@@ -31,7 +31,9 @@ const PRECACHE = [
   "mascot/deco2.png",
   "mascot/mascot.png",
   "mascot/timer-cat-left.png",
-  "sounds/meow.mp3"
+  "sounds/meow1.mp3",
+  "sounds/meow2.mp3",
+  "sounds/meow3.mp3"
 ];
 
 self.addEventListener('install', (e) => {

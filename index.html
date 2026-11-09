@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#071a33">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
+<title>홀덤 토너먼트 클락</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#071a33;
+    --bg-2:#0c2a4d;
+    --panel:#123a63;
+    --panel-2:#164a7d;
+    --border:#2f5c8c;
+    --gold:#f2c14e;
+    --gold-soft:#c99a2e;
+    --text:#ffffff;
+    --text-dim:#cfe0f2;
+    --text-faint:#8fadc9;
+    --green:#6fcf97;
+    --red:#ff7a68;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, #123f6e 0%, var(--bg) 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+    position:fixed; inset:0;
+  }
+  #app{ height:100%; display:flex; flex-direction:column; }
+
+  /* ---------- ROTATE WARNING (portrait fallback) ---------- */
+  #rotate-warning{
+    display:none; position:fixed; inset:0; z-index:999;
+    background:var(--bg); color:var(--text);
+    flex-direction:column; align-items:center; justify-content:center; gap:18px; text-align:center; padding:30px;
+  }
+  #rotate-warning svg{ width:64px; height:64px; color:var(--gold); animation:rotate-hint 1.8s ease-in-out infinite; }
+  @keyframes rotate-hint{ 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(90deg);} }
+  #rotate-warning h2{ font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; }
+  #rotate-warning p{ color:var(--text-dim); font-size:14px; max-width:280px; }
+  @media (orientation: portrait){
+    #rotate-warning{ display:flex; }
+    #app{ display:none; }
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;
+    padding:10px 22px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--bg-2), transparent);
+    flex-shrink:0;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; justify-self:start; }
+  .mascot-badge{
+    display:none;
+    height:60px; width:auto; object-fit:contain;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,.5));
+    flex-shrink:0;
+  }
+  body.theme-cat .mascot-badge{ display:block; }
+  .title-group{
+    display:flex; align-items:center; gap:10px;
+    justify-self:center;
+  }
+  header h1{
+    font-family:'Bebas Neue', sans-serif;
+    letter-spacing:3px; font-size:26px; color:var(--gold);
+    text-align:center;
+  }
+  .status-pill{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--text-dim); background:var(--panel);
+    border:1px solid var(--border); padding:4px 10px; border-radius:20px;
+    letter-spacing:.5px;
+  }
+  .status-pill.running{ color:var(--green); border-color:#2c6a52; }
+  .status-pill.paused{ color:var(--gold); border-color:#5a4a24; }
+
+  .icon-btn{
+    position:relative; background:var(--panel); border:1px solid var(--border); color:var(--text-dim);
+    width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:.15s; flex-shrink:0; z-index:0;
+  }
+  .icon-btn::before{ content:none; }
+  .icon-btn:hover{ color:var(--gold); border-color:var(--gold-soft); }
+  .icon-btn svg{ width:24px; height:24px; position:relative; z-index:1; }
+  .icon-btn.muted{ color:var(--text-faint); }
+
+  .header-right{ display:flex; align-items:center; gap:10px; justify-self:end; }
+
+  /* ---------- MAIN: landscape layout — big hero on top, compact info row below ---------- */
+  main{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:16px; padding:14px 30px; overflow:hidden; min-height:0;
+  }
+  .top-row{
+    width:100%;
+    display:flex; align-items:center; justify-content:center; gap:20px; min-height:0;
+  }
+  .hero{
+    width:100%; max-width:1000px;
+    display:flex; flex-direction:column; align-items:center; gap:14px; min-height:0;
+  }
+  .bottom-row{
+    width:100%; max-width:1000px;
+    display:flex; gap:16px; align-items:stretch; flex-shrink:0;
+  }
+  .bottom-row .next-level{ flex:1; margin:0; display:flex; align-items:center; justify-content:center; }
+  .bottom-row .tracker{ flex:1.3; margin:0; }
+
+  .level-eyebrow{
+    font-family:'JetBrains Mono', monospace; letter-spacing:4px; font-size:12px;
+    color:var(--text-dim); text-transform:uppercase;
+  }
+  .level-eyebrow span{ color:var(--gold); font-weight:700; }
+
+  .timer-card{
+    position:relative; width:100%; flex:1;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--border);
+    border-radius:24px;
+    padding:clamp(14px,3vh,26px) 30px clamp(10px,2vh,18px);
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,.7);
+  }
+  .timer-card::before, .timer-card::after{
+    content:""; position:absolute; left:16px; right:16px; height:8px;
+    background-image: repeating-linear-gradient(90deg, var(--gold-soft) 0 10px, transparent 10px 20px);
+    opacity:.6;
+  }
+  .timer-card::before{ top:-4px; }
+  .timer-card::after{ bottom:-4px; }
+
+  .timer{
+    font-family:'JetBrains Mono', monospace; font-weight:700;
+    font-size:clamp(60px, 28vh, 190px); line-height:1;
+    letter-spacing:2px; text-align:center; color:var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .timer.urgent{ color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.55; } }
+
+  .progress-track{
+    margin-top:12px; height:6px; border-radius:6px; background:#081d38;
+    overflow:hidden; border:1px solid var(--border);
+  }
+  .progress-fill{ height:100%; background:linear-gradient(90deg, var(--gold-soft), var(--gold)); transition:width .3s linear; }
+  .progress-fill.urgent{ background:linear-gradient(90deg,#8a3a2f,var(--red)); }
+
+  .main-play-btn{
+    position:relative; border-radius:22px;
+    width:clamp(58px, 14vh, 105px); height:clamp(58px, 14vh, 105px);
+    flex-shrink:0; background: linear-gradient(180deg, var(--gold), var(--gold-soft));
+    border:none; color:#1c1404; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 10px 22px -8px rgba(0,0,0,.6);
+    transition:.15s; z-index:0;
+  }
+  .main-play-btn::before{ content:none; }
+  .main-play-btn:hover{ filter:brightness(1.08); }
+  .main-play-btn.running{ background: linear-gradient(180deg, var(--green), #3d8f68); color:#04180d; }
+  .main-play-btn svg{ position:relative; z-index:1; }
+  .main-play-btn svg{ width:clamp(20px,5vh,34px); height:clamp(20px,5vh,34px); }
+
+  .blinds-row{ display:flex; gap:16px; width:100%; }
+  .blind-block{
+    flex:1; background:var(--panel); border:1px solid var(--border); border-radius:16px;
+    padding:clamp(10px,2vh,20px) 10px; text-align:center;
+  }
+  .blind-block .label{ font-family:'JetBrains Mono',monospace; font-size:14px; letter-spacing:2px; color:var(--text-dim); }
+  .blind-block .value{ font-family:'Bebas Neue',sans-serif; font-size:clamp(42px,10vh,82px); color:var(--text); letter-spacing:1px; margin-top:4px; }
+  .blind-block .value.accent{ color:var(--gold); }
+
+  .next-level{
+    font-family:'Inter',sans-serif; font-size:13px; color:var(--text-dim);
+    background:var(--panel); border:1px dashed var(--border); border-radius:12px;
+    padding:8px 16px; width:100%; text-align:center;
+  }
+  .next-level b{ color:var(--gold); font-weight:600; }
+
+  .tracker{
+    width:100%;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:8px 12px;
+  }
+  .tracker-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; gap:8px; flex-wrap:wrap; }
+  .tracker-title{ font-family:'JetBrains Mono',monospace; letter-spacing:.5px; font-size:9px; color:var(--text-dim); text-transform:uppercase; }
+  .tracker-count{ font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--text); }
+  .tracker-count b{ color:var(--gold); }
+  .tracker-bar{ height:8px; border-radius:6px; background:#081d38; border:1px solid var(--border); overflow:hidden; }
+  .tracker-fill{ height:100%; background:linear-gradient(90deg,#3d8f68,var(--green)); transition:width .4s ease; }
+  .tracker-note{ font-size:9px; color:var(--text-faint); margin-top:5px; }
+
+  @media (max-height: 480px){
+    .timer{ font-size:clamp(40px,18vh,90px); }
+    .blind-block .value{ font-size:clamp(28px,7vh,48px); }
+    header{ padding:6px 16px; }
+    header h1{ font-size:20px; }
+    .mascot-badge{ height:38px; }
+    main{ padding:8px 20px; gap:10px; }
+    .hero{ gap:8px; }
+    .main-play-btn{ width:56px; height:56px; }
+    .main-play-btn svg{ width:24px; height:24px; }
+  }
+
+  /* ---------- ADMIN PANEL ---------- */
+  #overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(2px);
+    display:none; z-index:10;
+  }
+  #overlay.open{ display:block; }
+  #admin-panel{
+    position:fixed; top:0; right:-480px; width:460px; max-width:92vw; height:100%;
+    background:var(--bg-2); border-left:1px solid var(--border);
+    z-index:11; transition:right .25s ease; display:flex; flex-direction:column;
+  }
+  #admin-panel.open{ right:0; }
+  .admin-head{ display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .admin-head h2{ font-family:'Bebas Neue',sans-serif; letter-spacing:2px; font-size:26px; }
+  .tabs{ display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .tab{
+    flex:1; padding:14px 0; text-align:center; font-size:16px; font-weight:600;
+    color:var(--text-faint); cursor:pointer; border-bottom:2px solid transparent;
+  }
+  .tab.active{ color:var(--gold); border-bottom-color:var(--gold); }
+  .tab-content{ flex:1; overflow-y:auto; padding:22px; display:none; }
+  .tab-content.active{ display:block; }
+
+  .field-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+  .field-row label{ font-size:16px; color:var(--text-dim); }
+  .stepper{ display:flex; align-items:center; gap:10px; }
+  .stepper button{
+    width:46px; height:46px; border-radius:12px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); font-size:22px; cursor:pointer;
+  }
+  .stepper button:hover{ border-color:var(--gold-soft); color:var(--gold); }
+  .stepper .apply-btn{
+    width:auto; height:46px; padding:0 20px; font-size:16px; font-weight:600;
+    border-radius:12px; border:1px solid var(--border);
+    background:linear-gradient(180deg, var(--gold), var(--gold-soft)); color:#1c1404;
+  }
+  .stepper .apply-btn:hover{ filter:brightness(1.08); border-color:var(--gold-soft); color:#1c1404; }
+  .stepper input{
+    width:84px; text-align:center; background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:22px;
+    padding:12px 8px;
+  }
+
+  .btn{
+    display:block; width:100%; padding:15px; border-radius:12px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); font-weight:600; font-size:16px; cursor:pointer;
+    margin-bottom:12px; transition:.15s;
+  }
+  .btn:hover{ border-color:var(--gold-soft); }
+  .btn.primary{ background:linear-gradient(180deg, var(--gold), var(--gold-soft)); color:#1c1404; border:none; }
+  .btn.danger{ color:var(--red); }
+  .btn-row{ display:flex; gap:12px; }
+  .btn-row .btn{ flex:1; }
+
+  table.blind-table{ width:100%; border-collapse:collapse; font-size:14px; }
+  table.blind-table th{
+    font-family:'JetBrains Mono',monospace; text-align:center; color:var(--text-faint);
+    font-weight:500; padding:9px 4px; border-bottom:1px solid var(--border);
+  }
+  table.blind-table td{ padding:9px 4px; text-align:center; border-bottom:1px solid #1a3a5e; color:var(--text-dim); }
+  table.blind-table tr.current-row{ background:rgba(242,193,78,.12); }
+  table.blind-table tr.current-row td{ color:var(--text); font-weight:600; }
+
+  .hint{ font-size:13px; color:var(--text-faint); margin-top:8px; line-height:1.55; }
+  /* ---------- CAT THEME ---------- */
+  body.theme-cat{
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  body.theme-cat header{
+    background: rgba(10,9,8,0.32);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  body.theme-cat .timer-card,
+  body.theme-cat .blind-block,
+  body.theme-cat .tracker,
+  body.theme-cat .next-level,
+  body.theme-cat #admin-panel,
+  body.theme-cat .status-pill{
+    background: rgba(14,13,12,0.34);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  body.theme-cat .icon-btn,
+  body.theme-cat .main-play-btn{
+    background:transparent; border:none; box-shadow:none;
+  }
+  body.theme-cat .icon-btn::before,
+  body.theme-cat .main-play-btn::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    --catface: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='18,42 30,7 45,36'/><polygon points='82,42 70,7 55,36'/><ellipse cx='50' cy='58' rx='37' ry='33'/><line x1='13' y1='56' x2='-6' y2='50' stroke='black' stroke-width='3.5' stroke-linecap='round'/><line x1='13' y1='65' x2='-6' y2='68' stroke='black' stroke-width='3.5' stroke-linecap='round'/><line x1='87' y1='56' x2='106' y2='50' stroke='black' stroke-width='3.5' stroke-linecap='round'/><line x1='87' y1='65' x2='106' y2='68' stroke='black' stroke-width='3.5' stroke-linecap='round'/></svg>");
+    -webkit-mask-image:var(--catface); mask-image:var(--catface);
+    -webkit-mask-size:contain; mask-size:contain;
+    -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+    -webkit-mask-position:center; mask-position:center;
+    transition:.15s;
+  }
+  body.theme-cat .icon-btn::before{
+    background: rgba(14,13,12,0.55);
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,.4));
+  }
+  body.theme-cat .main-play-btn::before{
+    background: linear-gradient(180deg, var(--gold), var(--gold-soft));
+    filter: drop-shadow(0 10px 22px rgba(0,0,0,.85));
+  }
+  body.theme-cat .main-play-btn.running::before{
+    background: linear-gradient(180deg, var(--green), #3d8f68);
+  }
+  body.theme-cat .main-play-btn svg{
+    position:absolute; top:58%; left:50%;
+    transform:translate(-50%, -50%);
+  }
+  body.theme-cat .timer,
+  body.theme-cat .blind-block .value,
+  body.theme-cat .level-eyebrow,
+  body.theme-cat header h1,
+  body.theme-cat .tracker-count,
+  body.theme-cat .next-level,
+  body.theme-cat .blind-block .label{
+    text-shadow: 0 2px 10px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9);
+  }  .timer-flank{
+    display:none;
+    position:absolute; top:50%; height:clamp(90px, 22vh, 165px); width:auto;
+    object-fit:contain;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.55));
+    opacity:0; pointer-events:none;
+    transition: opacity .3s ease;
+    z-index:2;
+  }
+  body.theme-cat .timer-flank{ display:block; }
+  .flank-left{ left:6px; transform:translateY(-50%) rotate(-6deg); }
+  .flank-right{ right:6px; transform:translateY(-50%) rotate(6deg); }
+  .timer-card.urgent-flank .flank-left{
+    opacity:1;
+    animation: flankSwayLeft 1.4s ease-in-out infinite;
+  }
+  .timer-card.urgent-flank .flank-right{
+    opacity:1;
+    animation: flankDanceRight 1s ease-in-out infinite;
+    animation-delay: .18s;
+  }
+  @keyframes flankSwayLeft{
+    0%,100%{ transform: translateY(-50%) translateX(0) rotate(-6deg); }
+    50%{ transform: translateY(-50%) translateX(-8px) rotate(-10deg); }
+  }
+  @keyframes flankDanceRight{
+    0%,100%{ transform: translateY(-50%) translateX(0) rotate(6deg) scale(1); }
+    25%{ transform: translateY(-50%) translateX(12px) rotate(15deg) scale(1.04); }
+    50%{ transform: translateY(-50%) translateX(-4px) rotate(-3deg) scale(0.97); }
+    75%{ transform: translateY(-50%) translateX(8px) rotate(11deg) scale(1.02); }
+  }
+
+  .corner-deco{
+    display:none;
+    position:fixed; z-index:1; pointer-events:none;
+    opacity:.85; filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));
+  }
+  body.theme-cat .corner-deco{ display:block; }
+  #deco-bl{ left:-10px; bottom:-70px; width:210px; transform:rotate(-6deg); }
+  #deco-tr{ right:-16px; top:52px; width:170px; transform:rotate(8deg); }
+  @media (max-width: 900px){
+    #deco-bl{ width:140px; }
+    #deco-tr{ width:120px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="rotate-warning">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+  <h2>기기를 가로로 돌려주세요</h2>
+  <p>이 화면은 가로 모드 전용으로 만들어졌어요.</p>
+</div>
+
+<img id="deco-bl" class="corner-deco" src="mascot/deco1.png" alt="">
+<img id="deco-tr" class="corner-deco" src="mascot/deco2.png" alt="">
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <a href="https://dumbulholdem-rank.web.app/" style="color:var(--text-dim); font-size:11px; text-decoration:none; border:1px solid var(--border); border-radius:8px; padding:4px 8px; white-space:nowrap;">📋 점수표</a>
+    </div>
+    <div class="title-group">
+      <img class="mascot-badge" src="mascot/mascot.png" alt="마스코트 고양이">
+      <h1>덤불홀덤</h1>
+    </div>
+    <div class="header-right">
+      <div id="status-pill" class="status-pill paused">일시정지</div>
+      <button class="icon-btn" id="theme-toggle" title="테마 전환">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="7" cy="8.5" r="2.1"/>
+          <circle cx="12" cy="6" r="2.1"/>
+          <circle cx="17" cy="8.5" r="2.1"/>
+          <path d="M12 11c-3.1 0-6.2 2.3-6.2 5.7 0 2.5 2.1 3.6 4.1 2.6.8-.4 1.4-.4 2.2 0 2 1 4.1-.1 4.1-2.6C16.2 13.3 15.1 11 12 11z"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="sound-toggle" title="소리">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polygon points="3 9 3 15 8 15 13 20 13 4 8 9 3 9" fill="currentColor" stroke="none"/>
+          <path d="M16 8a5 5 0 0 1 0 8"/>
+          <path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="admin-toggle" title="관리자">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div class="level-eyebrow">LEVEL <span id="level-num">1</span> / <span id="level-total">21</span></div>
+      <div class="top-row">
+        <div class="timer-card">
+          <img class="timer-flank flank-left" id="flank-left" src="mascot/cat-dance.gif" alt="">
+          <div class="timer" id="timer-text">15:00</div>
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <img class="timer-flank flank-right" id="flank-right" src="mascot/timer-cat-left.png" alt="">
+        </div>
+        <button class="main-play-btn" id="main-play-pause-btn" title="시작 / 일시정지">
+          <svg id="main-play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+        </button>
+      </div>
+      <div class="blinds-row" id="blinds-row">
+        <div class="blind-block"><div class="label">SMALL BLIND</div><div class="value" id="sb-val">100</div></div>
+        <div class="blind-block"><div class="label">BIG BLIND</div><div class="value" id="bb-val">200</div></div>
+        <div class="blind-block"><div class="label">ANTE</div><div class="value accent" id="ante-val">200</div></div>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <div class="next-level" id="next-level-text">다음: SB 200 · BB 400 · ANTE 400</div>
+
+      <div class="tracker">
+        <div class="tracker-top">
+          <div class="tracker-title">머니인 현황 (참가 인원의 절반)</div>
+          <div class="tracker-count"><b id="moneyin-val">4</b> / <span id="total-val">9</span> 명</div>
+        </div>
+        <div class="tracker-bar"><div class="tracker-fill" id="tracker-fill" style="width:0%"></div></div>
+        <div class="tracker-note">머니인 인원은 총 참가 인원의 절반으로 자동 계산돼요.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="overlay"></div>
+<div id="admin-panel">
+  <div class="admin-head">
+    <h2>관리자 설정</h2>
+    <button class="icon-btn" id="admin-close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="timer">타이머</div>
+    <div class="tab" data-tab="players">인원</div>
+    <div class="tab" data-tab="blinds">블라인드 표</div>
+  </div>
+
+  <div class="tab-content active" id="tab-timer">
+    <div class="btn-row">
+      <button class="btn" id="test-chime-btn">🔔 알림음 테스트</button>
+      <button class="btn" id="test-voice-btn">🔊 음성 안내 테스트</button>
+    </div>
+    <div class="hint" style="margin-top:-4px; margin-bottom:14px;">눌러도 소리가 전혀 안 나면 태블릿에 한국어 음성(TTS)이 설치 안 된 거예요.</div>
+    <div class="btn-row">
+      <button class="btn primary" id="play-pause-btn">▶ 시작</button>
+      <button class="btn" id="reset-level-btn">레벨 초기화</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="prev-level-btn">◀ 이전 레벨</button>
+      <button class="btn" id="next-level-btn">다음 레벨 ▶</button>
+    </div>
+    <div class="hint">현재 레벨의 남은 시간을 직접 조정할 수 있어요.</div>
+    <div class="field-row">
+      <label>남은 시간(분:초)</label>
+      <div class="stepper">
+        <input type="number" id="edit-min" min="0" style="width:58px">
+        <span>:</span>
+        <input type="number" id="edit-sec" min="0" max="59" style="width:58px">
+        <button class="apply-btn" id="apply-time-btn">적용</button>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:18px;">모든 레벨의 진행 시간을 한 번에 바꿔요. 현재 진행 중인 레벨에도 바로 적용됩니다.</div>
+    <div class="field-row">
+      <label>레벨당 진행 시간(분)</label>
+      <div class="stepper">
+        <input type="number" id="bulk-duration" min="1" value="15">
+        <button class="apply-btn" id="apply-duration-btn">적용</button>
+      </div>
+    </div>
+    <button class="btn danger" id="reset-all-btn" style="margin-top:24px;">토너먼트 전체 초기화</button>
+  </div>
+
+  <div class="tab-content" id="tab-players">
+    <div class="field-row">
+      <label>총 참가 인원</label>
+      <div class="stepper">
+        <button data-delta="-1">−</button>
+        <input type="number" id="total-input" min="1">
+        <button data-delta="1">+</button>
+      </div>
+    </div>
+    <div class="hint">머니인(바이인 완료) 인원은 총 참가 인원의 절반으로 자동 표시돼요. 총 인원만 조정하면 됩니다.</div>
+  </div>
+
+  <div class="tab-content" id="tab-blinds">
+    <div class="hint" style="margin-bottom:10px;">블라인드 구조는 고정값이라 여기서는 확인만 할 수 있어요. 진행 시간은 '타이머' 탭에서 조정하세요.</div>
+    <table class="blind-table" id="blind-table">
+      <thead>
+        <tr><th>#</th><th>SB</th><th>BB</th><th>ANTE</th></tr>
+      </thead>
+      <tbody id="blind-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'holdem-tournament-state-v2';
+
+  const fixedBlinds = [
+    [100,200,200],[200,400,400],[300,600,600],[400,800,800],[500,1000,1000],
+    [600,1200,1200],[800,1600,1600],[1000,2000,2000],[1200,2400,2400],[1500,3000,3000],
+    [2000,4000,4000],[2500,5000,5000],[3000,6000,6000],[4000,8000,8000],[5000,10000,10000],
+    [6000,12000,12000],[8000,16000,16000],[10000,20000,20000],[12000,24000,24000],[15000,30000,30000],
+    [20000,40000,40000]
+  ];
+
+  const defaultLevels = () => fixedBlinds.map(([sb,bb,ante]) => ({sb,bb,ante,duration:15}));
+
+  let state = {
+    levels: defaultLevels(),
+    currentLevelIndex: 0,
+    timeRemaining: defaultLevels()[0].duration * 60,
+    running: false,
+    totalPlayers: 9,
+    soundEnabled: true,
+    theme: 'blue',
+  };
+
+  const CAT_BACKGROUNDS = [
+    'cats/cat-bg-gif.gif','cats/cat1.jpg','cats/cat2.jpg','cats/cat3.jpg','cats/cat4.jpg',
+    'cats/cat5.jpg','cats/cat6.jpg','cats/cat7.jpg','cats/cat8.jpg','cats/cat9.jpg',
+    'cats/cat10.jpg','cats/cat11.jpg','cats/cat12.jpg','cats/cat13.jpg','cats/cat14.jpg',
+    'cats/cat15.jpg','cats/cat16.jpg','cats/cat17.jpg','cats/cat18.jpg','cats/cat19.jpg',
+    'cats/cat20.jpg'
+  ];
+
+  function applyTheme(){
+    if(state.theme === 'cat'){
+      document.body.classList.add('theme-cat');
+      const img = CAT_BACKGROUNDS[state.currentLevelIndex % CAT_BACKGROUNDS.length];
+      document.body.style.backgroundImage = `linear-gradient(rgba(6,6,8,.32), rgba(6,6,8,.45)), url('${img}')`;
+    } else {
+      document.body.classList.remove('theme-cat');
+      document.body.style.backgroundImage = '';
+    }
+  }
+
+  let audioCtx = null;
+  let speechUnlocked = false;
+  let koreanVoice = null;
+
+  function refreshVoiceList(){
+    if(!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices();
+    if(voices && voices.length){
+      koreanVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ko')) || null;
+    }
+  }
+  if('speechSynthesis' in window){
+    refreshVoiceList();
+    speechSynthesis.onvoiceschanged = refreshVoiceList;
+  }
+
+  function unlockAudio(){
+    try{
+      if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+      if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+    }catch(e){ /* audio not supported */ }
+    if('speechSynthesis' in window && !speechUnlocked){
+      try{
+        const warm = new SpeechSynthesisUtterance(' ');
+        warm.volume = 0;
+        speechSynthesis.speak(warm);
+        speechUnlocked = true;
+      }catch(e){ /* tts not supported */ }
+    }
+    const audioEl = document.getElementById('meow-audio');
+    if(audioEl){
+      audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; }).catch(() => {});
+    }
+  }
+
+  function playChime(){
+    if(!state.soundEnabled) return;
+    if(state.theme === 'cat'){
+      const audioEl = document.getElementById('meow-audio');
+      if(audioEl){
+        try{
+          audioEl.currentTime = 0;
+          const p = audioEl.play();
+          if(p && typeof p.catch === 'function'){
+            p.catch(() => { playSynthMeow(); });
+          }
+          return;
+        }catch(e){ /* fall through to synthesized version below */ }
+      }
+      playSynthMeow();
+    } else {
+      playBeep();
+    }
+  }
+
+  function playBeep(){
+    try{
+      if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+      if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+      const now = audioCtx.currentTime;
+      const beepTimes = [0, 0.16, 0.32];
+      beepTimes.forEach((offset) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 1000;
+        const start = now + offset;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.22, start+0.01);
+        gain.gain.setValueAtTime(0.22, start+0.09);
+        gain.gain.linearRampToValueAtTime(0, start+0.11);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(start);
+        osc.stop(start+0.12);
+      });
+    }catch(e){ console.error('beep error', e); }
+  }
+
+  function playSynthMeow(){
+    try{
+      if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+      if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+      const now = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      const filter = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sawtooth';
+      filter.type = 'lowpass';
+      filter.frequency.value = 2200;
+      filter.Q.value = 3;
+
+      // pitch contour: quick rise then a slower falling "meow" tail, with a little wobble
+      osc.frequency.setValueAtTime(480, now);
+      osc.frequency.linearRampToValueAtTime(1000, now + 0.10);
+      osc.frequency.linearRampToValueAtTime(760, now + 0.22);
+      osc.frequency.linearRampToValueAtTime(820, now + 0.30);
+      osc.frequency.linearRampToValueAtTime(400, now + 0.62);
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0.22, now + 0.32);
+      gain.gain.linearRampToValueAtTime(0, now + 0.68);
+
+      osc.connect(filter).connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.7);
+    }catch(e){ console.error('meow error', e); }
+  }
+
+  function speakBlinds(levelNum, lvl){
+    if(!state.soundEnabled) return;
+    if(!('speechSynthesis' in window)) return;
+    try{
+      refreshVoiceList();
+      speechSynthesis.cancel();
+      let text = `레벨 ${levelNum}. 스몰 블라인드 ${lvl.sb.toLocaleString('ko-KR')}, 빅 블라인드 ${lvl.bb.toLocaleString('ko-KR')}`;
+      if(lvl.ante > 0){ text += `, 앤티 ${lvl.ante.toLocaleString('ko-KR')}`; }
+      text += '.';
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ko-KR';
+      utter.rate = 0.95;
+      if(koreanVoice){ utter.voice = koreanVoice; }
+      utter.onerror = (e) => console.error('음성 안내 실패:', e.error);
+      speechSynthesis.speak(utter);
+    }catch(e){ console.error('tts error', e); }
+  }
+
+  function announceLevel(idx){
+    const lvl = state.levels[idx];
+    if(!lvl) return;
+    playChime();
+    setTimeout(() => speakBlinds(idx+1, lvl), state.theme === 'cat' ? 1000 : 500);
+  }
+
+  let tickHandle = null;
+  let wakeLock = null;
+
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+        });
+      }
+    }catch(e){
+      console.error('화면 꺼짐 방지 실패:', e);
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && !wakeLock){
+      requestWakeLock();
+    }
+  });
+  document.addEventListener('click', () => {
+    if(!wakeLock) requestWakeLock();
+  });
+  requestWakeLock();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+  let saveCounter = 0;
+
+  async function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.levels)){
+          state = parsed;
+          if(typeof state.soundEnabled !== 'boolean') state.soundEnabled = true;
+          if(typeof state.theme !== 'string') state.theme = 'blue';
+        }
+      }
+    }catch(e){ /* no saved state yet, keep defaults */ }
+    applyTheme();
+    render();
+  }
+
+  async function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){ console.error('저장 실패', e); }
+  }
+
+  function fmt(sec){
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec/60);
+    const s = sec % 60;
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+
+  function currentLevel(){ return state.levels[state.currentLevelIndex]; }
+  function nextLevelObj(){ return state.levels[state.currentLevelIndex+1] || null; }
+  function moneyInCount(){ return Math.round(state.totalPlayers / 2); }
+
+  function render(){
+    const lvl = currentLevel();
+    const total = state.levels.length;
+
+    document.getElementById('level-num').textContent = state.currentLevelIndex+1;
+    document.getElementById('level-total').textContent = total;
+
+    const timerEl = document.getElementById('timer-text');
+    timerEl.textContent = fmt(state.timeRemaining);
+    timerEl.classList.toggle('urgent', state.timeRemaining <= 60);
+
+    const pct = Math.min(100, Math.max(0, 100 * (1 - state.timeRemaining / (lvl.duration*60))));
+    const fillEl = document.getElementById('progress-fill');
+    fillEl.style.width = pct + '%';
+    fillEl.classList.toggle('urgent', state.timeRemaining <= 60);
+
+    document.querySelector('.timer-card').classList.toggle('urgent-flank', state.timeRemaining <= 60);
+
+    document.getElementById('sb-val').textContent = lvl.sb.toLocaleString('ko-KR');
+    document.getElementById('bb-val').textContent = lvl.bb.toLocaleString('ko-KR');
+    document.getElementById('ante-val').textContent = lvl.ante.toLocaleString('ko-KR');
+
+    const nextEl = document.getElementById('next-level-text');
+    const nl = nextLevelObj();
+    if(nl){
+      nextEl.innerHTML = `다음: SB <b>${nl.sb.toLocaleString('ko-KR')}</b> · BB <b>${nl.bb.toLocaleString('ko-KR')}</b> · ANTE <b>${nl.ante.toLocaleString('ko-KR')}</b>`;
+    } else {
+      nextEl.innerHTML = '<b>마지막 레벨</b>';
+    }
+
+    const mi = moneyInCount();
+    document.getElementById('moneyin-val').textContent = mi;
+    document.getElementById('total-val').textContent = state.totalPlayers;
+    const ratio = state.totalPlayers > 0 ? (mi/state.totalPlayers*100) : 0;
+    document.getElementById('tracker-fill').style.width = ratio + '%';
+
+    const pill = document.getElementById('status-pill');
+    pill.textContent = state.running ? '진행 중' : '일시정지';
+    pill.className = 'status-pill ' + (state.running ? 'running' : 'paused');
+    document.getElementById('play-pause-btn').textContent = state.running ? '⏸ 일시정지' : '▶ 시작';
+
+    const mainBtn = document.getElementById('main-play-pause-btn');
+    mainBtn.classList.toggle('running', state.running);
+    document.getElementById('main-play-icon').outerHTML = state.running
+      ? '<svg id="main-play-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
+      : '<svg id="main-play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+
+    document.getElementById('total-input').value = state.totalPlayers;
+    document.getElementById('bulk-duration').value = lvl.duration;
+
+    const themeBtn = document.getElementById('theme-toggle');
+    themeBtn.style.color = state.theme === 'cat' ? 'var(--gold)' : '';
+    themeBtn.title = state.theme === 'cat' ? '고양이 테마 (클릭하면 기본 테마로)' : '기본 테마 (클릭하면 고양이 테마로)';
+
+    const soundBtn = document.getElementById('sound-toggle');
+    soundBtn.classList.toggle('muted', !state.soundEnabled);
+    soundBtn.style.color = state.soundEnabled ? '' : 'var(--text-faint)';
+    soundBtn.title = state.soundEnabled ? '소리 켜짐 (끄려면 클릭)' : '소리 꺼짐 (켜려면 클릭)';
+
+    renderBlindTable();
+  }
+
+  function renderBlindTable(){
+    const tbody = document.getElementById('blind-tbody');
+    tbody.innerHTML = '';
+    state.levels.forEach((lvl, idx) => {
+      const tr = document.createElement('tr');
+      if(idx === state.currentLevelIndex) tr.classList.add('current-row');
+      tr.innerHTML = `
+        <td>${idx+1}</td>
+        <td>${lvl.sb.toLocaleString('ko-KR')}</td>
+        <td>${lvl.bb.toLocaleString('ko-KR')}</td>
+        <td>${lvl.ante.toLocaleString('ko-KR')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function goToLevel(idx){
+    idx = Math.max(0, Math.min(state.levels.length-1, idx));
+    const changed = idx !== state.currentLevelIndex;
+    state.currentLevelIndex = idx;
+    state.timeRemaining = state.levels[idx].duration * 60;
+    applyTheme();
+    render(); saveState();
+    if(changed) announceLevel(idx);
+  }
+
+  function tick(){
+    if(!state.running) return;
+    state.timeRemaining -= 1;
+    if(state.timeRemaining <= 0){
+      if(state.currentLevelIndex < state.levels.length - 1){
+        goToLevel(state.currentLevelIndex + 1);
+        saveCounter = 0;
+        return;
+      } else {
+        state.timeRemaining = 0;
+        state.running = false;
+        render(); saveState();
+        return;
+      }
+    }
+    render();
+    saveCounter++;
+    if(saveCounter % 5 === 0) saveState();
+  }
+
+  function startTicking(){
+    if(tickHandle) clearInterval(tickHandle);
+    tickHandle = setInterval(tick, 1000);
+  }
+
+  // ---------- header ----------
+  document.getElementById('admin-toggle').addEventListener('click', () => {
+    document.getElementById('admin-panel').classList.add('open');
+    document.getElementById('overlay').classList.add('open');
+  });
+  document.getElementById('admin-close').addEventListener('click', closeAdmin);
+  document.getElementById('overlay').addEventListener('click', closeAdmin);
+  function closeAdmin(){
+    document.getElementById('admin-panel').classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---------- theme toggle ----------
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    state.theme = state.theme === 'cat' ? 'blue' : 'cat';
+    applyTheme();
+    render(); saveState();
+  });
+
+  // ---------- sound toggle ----------
+  document.getElementById('sound-toggle').addEventListener('click', () => {
+    unlockAudio();
+    state.soundEnabled = !state.soundEnabled;
+    render(); saveState();
+  });
+  document.addEventListener('click', unlockAudio, {once:true});
+
+  // ---------- timer tab ----------
+  document.getElementById('test-chime-btn').addEventListener('click', () => {
+    unlockAudio();
+    playChime();
+  });
+  document.getElementById('test-voice-btn').addEventListener('click', () => {
+    unlockAudio();
+    const lvl = currentLevel();
+    speakBlinds(state.currentLevelIndex+1, lvl);
+  });
+  document.getElementById('play-pause-btn').addEventListener('click', () => {
+    unlockAudio();
+    state.running = !state.running;
+    render(); saveState();
+  });
+  document.getElementById('main-play-pause-btn').addEventListener('click', () => {
+    unlockAudio();
+    state.running = !state.running;
+    render(); saveState();
+  });
+  document.getElementById('reset-level-btn').addEventListener('click', () => {
+    state.timeRemaining = currentLevel().duration * 60;
+    render(); saveState();
+  });
+  document.getElementById('prev-level-btn').addEventListener('click', () => goToLevel(state.currentLevelIndex-1));
+  document.getElementById('next-level-btn').addEventListener('click', () => goToLevel(state.currentLevelIndex+1));
+
+  document.getElementById('apply-time-btn').addEventListener('click', () => {
+    const m = parseInt(document.getElementById('edit-min').value,10) || 0;
+    const s = parseInt(document.getElementById('edit-sec').value,10) || 0;
+    state.timeRemaining = m*60 + s;
+    render(); saveState();
+  });
+
+  document.getElementById('apply-duration-btn').addEventListener('click', () => {
+    const mins = parseInt(document.getElementById('bulk-duration').value,10);
+    if(!mins || mins < 1) return;
+    state.levels.forEach(lvl => { lvl.duration = mins; });
+    state.timeRemaining = mins * 60;
+    render(); saveState();
+  });
+
+  document.getElementById('reset-all-btn').addEventListener('click', () => {
+    if(!confirm('토너먼트를 처음부터 다시 시작할까요? 모든 진행 상황이 초기화됩니다.')) return;
+    const keepDuration = currentLevel().duration;
+    state = {
+      levels: defaultLevels().map(l => ({...l, duration: keepDuration})),
+      currentLevelIndex: 0,
+      timeRemaining: keepDuration*60,
+      running: false,
+      totalPlayers: state.totalPlayers,
+    };
+    render(); saveState();
+  });
+
+  // ---------- players tab ----------
+  document.querySelectorAll('#tab-players .stepper button[data-delta]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.delta,10);
+      state.totalPlayers = Math.max(1, state.totalPlayers + delta);
+      render(); saveState();
+    });
+  });
+  document.getElementById('total-input').addEventListener('change', (e) => {
+    let v = parseInt(e.target.value,10) || 1;
+    state.totalPlayers = Math.max(1, v);
+    render(); saveState();
+  });
+
+  loadState().then(startTicking);
+})();
+</script>
+<audio id="meow-audio" preload="auto">
+  <source src="sounds/meow.mp3" type="audio/mpeg">
+  <source src="https://bigsoundbank.com/UPLOAD/mp3/1892.mp3" type="audio/mpeg">
+</audio>
+</body>
+</html>
